@@ -1,0 +1,64 @@
+// USER PARAMETER - TO BE CHANGED
+// Specify the name of MOJO file downloaded from H2O
+def model_file = 'StackedEnsemble_AutoML_ETA.zip'
+def docker_group = 'dattarajrao'
+def docker_image = 'shx-eta-demo'
+def docker_version = '1.0.0'
+
+println 'Building Microservice for H2O Model file : ' + model_file
+
+buildscript {
+    repositories {
+      maven {
+        url "https://plugins.gradle.org/m2/"
+      }
+      mavenCentral()
+    }
+    dependencies {
+        classpath('org.springframework.boot:spring-boot-gradle-plugin:2.0.3.RELEASE')
+// tag::build[]
+        classpath('gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0')
+        classpath('ai.h2o:h2o-genmodel:3.20.0.5')
+// end::build[]
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+// tag::plugin[]
+apply plugin: 'com.palantir.docker'
+// end::plugin[]
+
+// This is used as the docker image prefix (org)
+group = docker_group
+
+bootJar {
+   //
+    baseName = docker_image
+    version =  docker_version
+}
+
+// tag::task[]
+docker {
+    dependsOn build
+    name "${project.group}/${bootJar.baseName}"
+    files bootJar.archivePath, model_file
+    buildArgs(['JAR_FILE': "${bootJar.archiveName}", 'MODEL_FILE': "${model_file}"])
+}
+// end::task[]
+
+repositories {
+    mavenCentral()
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+    compile("org.springframework.boot:spring-boot-starter-web")
+    compile files("h2o-genmodel.jar")
+    testCompile("org.springframework.boot:spring-boot-starter-test")
+}
